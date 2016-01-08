@@ -1,3 +1,3 @@
-AppServicePlan;WebsiteName;SourceSlot;TargetSlot
-Plan1;website1;source-slot;Target
-Plan2;website2;staging;production
+WebSpace;WebsiteName;SourceSlot;TargetSlot
+Group-WestEuropewebspace;michiel-test;staging;production
+WebSpace2;website2;staging;production

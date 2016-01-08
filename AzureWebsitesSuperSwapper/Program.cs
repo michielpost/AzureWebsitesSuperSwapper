@@ -3,6 +3,7 @@ using CsvHelper;
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Microsoft.WindowsAzure;
 using Microsoft.WindowsAzure.Management.WebSites;
+using Microsoft.WindowsAzure.Management.WebSites.Models;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
@@ -49,6 +50,13 @@ namespace AzureWebsitesSuperSwapper
 			}
 			else
 			{
+				Console.WriteLine("List of Swap Commands:");
+				foreach(var swap in swapCommands)
+				{
+					Console.WriteLine($"Found {swap.WebSpace} {swap.WebsiteName}: {swap.SourceSlot} to {swap.TargetSlot}");
+
+				}
+
 				Console.WriteLine($"Found {swapCommands.Count} SwapCommands. Are you sure?");
 				Console.WriteLine("Press ENTER to continue.");
 				Console.ReadLine();
@@ -61,14 +69,37 @@ namespace AzureWebsitesSuperSwapper
 			_client = new WebSiteManagementClient(cred);
 			Dictionary<string, SwapCommand> swapOperations = new Dictionary<string, SwapCommand>();
 
+			//List all websites:
+			var webspaces = await _client.WebSpaces.ListAsync();
+			foreach(var space in webspaces)
+			{
+				var websites = await _client.WebSpaces.ListWebSitesAsync(space.Name, new WebSiteListParameters
+				{
+					PropertiesToInclude = new List<string>()
+				});
+
+				foreach (var website in websites)
+				{
+					Console.WriteLine(space.Name + " " + website.Name);
+				}
+			}
+
 			//Execute Swap Commands
 			foreach (var command in swapCommands)
 			{
-				var swapOperation = await _client.WebSites.SwapSlotsAsync(command.AppServicePlan, command.WebsiteName, command.SourceSlot, command.TargetSlot);
-				swapOperations.Add(swapOperation.OperationId, command);
+				try
+				{
+					var swapOperation = await _client.WebSites.BeginSwappingSlotsAsync(command.WebSpace, command.WebsiteName, command.SourceSlot, command.TargetSlot);
+					swapOperations.Add(swapOperation.OperationId, command);
 
-				var actionDescription = $"Swapping for {command.AppServicePlan} - {command.WebsiteName}: slot {command.SourceSlot} to {command.TargetSlot}";
-				Console.WriteLine(actionDescription);
+					var actionDescription = $"Swapping for {command.WebSpace} - {command.WebsiteName}: slot {command.SourceSlot} to {command.TargetSlot}";
+					Console.WriteLine(actionDescription);
+				}
+				catch
+				{
+					var failDescription = $"FAILED for {command.WebSpace} - {command.WebsiteName}: slot {command.SourceSlot} to {command.TargetSlot}";
+					Console.WriteLine(failDescription);
+				}
 			}
 
 			//Wait for Swap Commands to finish
@@ -102,7 +133,7 @@ namespace AzureWebsitesSuperSwapper
 			{
 				await Task.Delay(TimeSpan.FromSeconds(5));
 
-				var operationStatus = await _client.GetOperationStatusAsync(command.AppServicePlan, command.WebsiteName, operationId);
+				var operationStatus = await _client.GetOperationStatusAsync(command.WebSpace, command.WebsiteName, operationId);
 
 				if (operationStatus.Status != Microsoft.WindowsAzure.Management.WebSites.Models.WebSiteOperationStatus.Created
 				   && operationStatus.Status != Microsoft.WindowsAzure.Management.WebSites.Models.WebSiteOperationStatus.InProgress)
@@ -112,7 +143,7 @@ namespace AzureWebsitesSuperSwapper
 				}
 			}
 
-			var statusDescription = $"Swap for {command.AppServicePlan} - {command.WebsiteName}: slot {command.SourceSlot} to {command.TargetSlot} ended with status {status.ToUpper()}";
+			var statusDescription = $"Swap for {command.WebSpace} - {command.WebsiteName}: slot {command.SourceSlot} to {command.TargetSlot} ended with status {status.ToUpper()}";
 			Console.WriteLine(statusDescription);
 
 			return status;
