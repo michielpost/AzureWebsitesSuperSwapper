@@ -1,16 +1,12 @@
 ﻿using AzureWebsitesSuperSwapper.Models;
 using CsvHelper;
-using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Microsoft.WindowsAzure;
 using Microsoft.WindowsAzure.Management.WebSites;
 using Microsoft.WindowsAzure.Management.WebSites.Models;
 using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace AzureWebsitesSuperSwapper
@@ -32,6 +28,9 @@ namespace AzureWebsitesSuperSwapper
 
 		static async Task MainAsync(string[] args)
 		{
+			string path = Directory.GetCurrentDirectory();
+			if (args.Any())
+				path = args.First();
 
 			//Read SwapCommands
 			List<SwapCommand> swapCommands = new List<SwapCommand>();
@@ -62,14 +61,33 @@ namespace AzureWebsitesSuperSwapper
 				Console.ReadLine();
 			}
 
-			var token = GetAuthorizationHeader();
-			var cred = new TokenCloudCredentials(
-			  ConfigurationManager.AppSettings["subscriptionId"], token);
+			//Find .publishprofile file
+			var publishProfile = Directory.GetFiles(path, "*.publishsettings").FirstOrDefault();
+			if (publishProfile == null)
+			{
+				Console.WriteLine("No .publishsettings file found. Please download it here http://go.microsoft.com/fwlink/?LinkID=301775 and place it in the current directory.");
+				return;
+			}
+
+			var pubProfileText = File.ReadAllText(publishProfile);
+			PublishSettingsFile file = new PublishSettingsFile(pubProfileText);
+			if (file.Subscriptions == null || !file.Subscriptions.Any())
+			{
+				Console.WriteLine("No subscriptions found in PublishSettingsFile");
+				return;
+			}
+			if (file.Subscriptions.Count() > 1)
+				Console.WriteLine("Multiple Subscriptions found, using the first: " + file.Subscriptions.First().Name);
+
+			var cred = file.Subscriptions.First().GetCredentials();
+
 
 			_client = new WebSiteManagementClient(cred);
 			Dictionary<string, SwapCommand> swapOperations = new Dictionary<string, SwapCommand>();
 
 			//List all websites:
+			Console.WriteLine();
+			Console.WriteLine("List of possible websites to swap:");
 			var webspaces = await _client.WebSpaces.ListAsync();
 			foreach(var space in webspaces)
 			{
@@ -83,6 +101,9 @@ namespace AzureWebsitesSuperSwapper
 					Console.WriteLine(space.Name + " " + website.Name);
 				}
 			}
+			Console.WriteLine();
+			Console.WriteLine();
+
 
 			//Execute Swap Commands
 			foreach (var command in swapCommands)
@@ -147,38 +168,6 @@ namespace AzureWebsitesSuperSwapper
 			Console.WriteLine(statusDescription);
 
 			return status;
-		}
-
-
-
-		private static string GetAuthorizationHeader()
-		{
-			AuthenticationResult result = null;
-
-			var context = new AuthenticationContext(string.Format(
-			  ConfigurationManager.AppSettings["login"],
-			  ConfigurationManager.AppSettings["tenantId"]));
-
-			var thread = new Thread(() =>
-			{
-				result = context.AcquireToken(
-				  ConfigurationManager.AppSettings["apiEndpoint"],
-				  ConfigurationManager.AppSettings["clientId"],
-				  new Uri(ConfigurationManager.AppSettings["redirectUri"]));
-			});
-
-			thread.SetApartmentState(ApartmentState.STA);
-			thread.Name = "AquireTokenThread";
-			thread.Start();
-			thread.Join();
-
-			if (result == null)
-			{
-				throw new InvalidOperationException("Failed to obtain the JWT token");
-			}
-
-			string token = result.AccessToken;
-			return token;
 		}
 
 	}
