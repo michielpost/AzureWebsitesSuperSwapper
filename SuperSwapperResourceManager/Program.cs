@@ -111,8 +111,9 @@ namespace SuperSwapperResourceManager
 			var resourceGroepMenu = new TypedMenu<ResourceGroup>(resourceGroups.ToList(), "Choose a resource group", x => x.Name);
 			var resourceGroup = resourceGroepMenu.Display();
 
+			var allWebsites = client.WebApps.ListByResourceGroup(resourceGroup.Name).ToList();
 
-			AskForSlot(newGroup, resourceGroup, client);
+			AskForSlot(newGroup, resourceGroup, client, allWebsites);
 
 			//Save group
 			//Write JSON to file
@@ -127,11 +128,11 @@ namespace SuperSwapperResourceManager
 		/// </summary>
 		/// <param name="newGroup"></param>
 		/// <param name="allEnv"></param>
-		private static void AskForSlot(SwapGroup newGroup, ResourceGroup resourceGroup, WebSiteManagementClient client)
+		private static void AskForSlot(SwapGroup newGroup, ResourceGroup resourceGroup, WebSiteManagementClient client, List<Site> allWebsites)
 		{
 			Console.WriteLine("Pick a website:");
 
-			var allWebsites = client.WebApps.ListByResourceGroup(resourceGroup.Name);
+			
 			var websiteMenu = new TypedMenu<Site>(allWebsites.ToList(), "Choose a website", x => x.Name);
 			var website = websiteMenu.Display();
 
@@ -162,7 +163,7 @@ namespace SuperSwapperResourceManager
 			if (answer.Equals("N", StringComparison.InvariantCultureIgnoreCase))
 				return;
 			else
-				AskForSlot(newGroup, resourceGroup, client);
+				AskForSlot(newGroup, resourceGroup, client, allWebsites);
 
 		}
 
