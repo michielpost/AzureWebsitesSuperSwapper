@@ -5,6 +5,7 @@ using Microsoft.Azure.Management.WebSites;
 using Microsoft.Azure.Management.WebSites.Models;
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Microsoft.Rest;
+using Microsoft.Rest.Azure;
 using SuperSwapperResourceManager.Models;
 using SuperSwapperResourceManager.Services;
 using System;
@@ -213,17 +214,42 @@ namespace SuperSwapperResourceManager
 				List<Task> swapTasks = new List<Task>();
 				foreach(var slot in picked.SwapSlots)
 				{
-					Console.WriteLine("Begin swapping: " + slot.Name);
-					swapTasks.Add(client.WebApps.BeginSwapSlotWithProductionAsync(slot.ResourceGroup, slot.Website, new Microsoft.Azure.Management.WebSites.Models.CsmSlotEntity() { TargetSlot = slot.Name }));
+					Console.WriteLine($"Begin swapping: {slot.Website} - {slot.Name}");
+                    swapTasks.Add(WaitForSwap(slot, client.WebApps.SwapSlotWithProductionWithHttpMessagesAsync(slot.ResourceGroup, slot.Website, new Microsoft.Azure.Management.WebSites.Models.CsmSlotEntity() { TargetSlot = slot.Name })));
 				}
 
-				await Task.WhenAny(swapTasks);
-				Console.WriteLine("Finished all swap operations!");
+                Console.WriteLine("Waiting for swaps to finish...");
+                if (swapTasks.Any())
+                {
+                    await Task.WhenAll(swapTasks);
+                }
+
+                Console.WriteLine("Finished all swap operations!");
 			}
 		}
 
+        private static async Task WaitForSwap(SlotConfig slot, Task<AzureOperationResponse> swapAction)
+        {
+            while (!swapAction.IsCompleted)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(5));
+            }
 
-		private static async Task<AuthenticationResult> GetAccessTokenAsync()
+            if (swapAction.Result.Response.IsSuccessStatusCode)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($" - Swap {slot.Website} - {slot.Name} finished with status: success");
+                Console.ForegroundColor = ConsoleColor.White;
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($" - Swap FAILED {slot.Website} - {slot.Name} finished with status: {swapAction.Result.Response.StatusCode}");
+                Console.ForegroundColor = ConsoleColor.White;
+            }
+        }
+
+        private static async Task<AuthenticationResult> GetAccessTokenAsync()
 		{
 			var context = new AuthenticationContext($"https://login.windows.net/{_aadTenantDomain}");
 			var token = await context.AcquireTokenAsync("https://management.core.windows.net/",
