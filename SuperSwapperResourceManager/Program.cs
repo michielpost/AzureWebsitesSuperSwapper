@@ -133,8 +133,9 @@ namespace SuperSwapperResourceManager
 		{
 			Console.WriteLine("Pick a website:");
 
+            var filteredWebsites = allWebsites.ToList().Where(x => !newGroup.SwapSlots.Select(s => s.Website).Contains(x.Name)).ToList();
 			
-			var websiteMenu = new TypedMenu<Site>(allWebsites.ToList(), "Choose a website", x => x.Name);
+			var websiteMenu = new TypedMenu<Site>(filteredWebsites, "Choose a website", x => x.Name);
 			var website = websiteMenu.Display();
 
 			var websiteSlots = client.WebApps.ListSlots(resourceGroup.Name, website.Name);
