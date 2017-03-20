@@ -236,7 +236,7 @@ namespace SuperSwapperResourceManager
                 await Task.Delay(TimeSpan.FromSeconds(5));
             }
 
-            if (swapAction.Result.Response.IsSuccessStatusCode)
+            if (!swapAction.IsFaulted && swapAction.Result.Response.IsSuccessStatusCode)
             {
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine($" - Swap {slot.Website} - {slot.Name} finished with status: success");
@@ -245,8 +245,12 @@ namespace SuperSwapperResourceManager
             else
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($" - Swap FAILED {slot.Website} - {slot.Name} finished with status: {swapAction.Result.Response.StatusCode}");
-                Console.ForegroundColor = ConsoleColor.White;
+				if(swapAction.IsFaulted)
+					Console.WriteLine($" - Swap FAILED {slot.Website} - {slot.Name} finished with exception: {swapAction.Exception}");
+				else
+					Console.WriteLine($" - Swap FAILED {slot.Website} - {slot.Name} finished with status: {swapAction.Result.Response.StatusCode}");
+
+				Console.ForegroundColor = ConsoleColor.White;
             }
         }
 
