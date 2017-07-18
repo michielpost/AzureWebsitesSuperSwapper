@@ -11,11 +11,15 @@ namespace SuperSwapperResourceManager.Models
 		public SwapGroup()
 		{
 			SwapSlots = new List<SlotConfig>();
+			CdnPurgeConfigs = new List<CdnPurgeConfig>();
 		}
 
 		public string Name { get; set; }
 
 		public List<SlotConfig> SwapSlots { get; set; }
+
+		public List<CdnPurgeConfig> CdnPurgeConfigs { get; set; }
+
 
 	}
 }

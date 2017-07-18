@@ -227,6 +227,39 @@ namespace SuperSwapperResourceManager
 
                 Console.WriteLine("Finished all swap operations!");
 			}
+
+			//Start CDN Purge
+			if (picked.CdnPurgeConfigs.Any())
+			{
+				Console.WriteLine("Do you want to purge CDNs?? (Y/N) (default N)");
+				foreach (var purge in picked.CdnPurgeConfigs)
+				{
+					Console.WriteLine(purge.EndpointName);
+				}
+				var purgeAnswer = Console.ReadLine();
+
+				if (purgeAnswer.Equals("Y", StringComparison.InvariantCultureIgnoreCase))
+				{
+					Console.WriteLine("Start CDN Purge");
+					var cdnClient = new Microsoft.Azure.Management.Cdn.CdnManagementClient(credentials);
+					cdnClient.SubscriptionId = subscriptionId;
+
+					List<Task> purgeTasks = new List<Task>();
+					foreach (var purge in picked.CdnPurgeConfigs)
+					{
+						Console.WriteLine($"Begin purge: {purge.EndpointName}");
+						purgeTasks.Add(WaitForCdnPurge(purge, cdnClient.Endpoints.PurgeContentWithHttpMessagesAsync(purge.ResourceGroup, purge.ProfileName, purge.EndpointName, new List<string>() { "/*" })));
+					}
+
+					Console.WriteLine("Waiting for purge actions to finish...");
+					if (purgeTasks.Any())
+					{
+						await Task.WhenAll(purgeTasks);
+					}
+
+					Console.WriteLine("Finished CDN Purge");
+				}
+			}
 		}
 
         private static async Task WaitForSwap(SlotConfig slot, Task<AzureOperationResponse> swapAction)
@@ -254,7 +287,32 @@ namespace SuperSwapperResourceManager
             }
         }
 
-        private static async Task<AuthenticationResult> GetAccessTokenAsync()
+		private static async Task WaitForCdnPurge(CdnPurgeConfig cdn, Task<AzureOperationResponse> purgeAction)
+		{
+			while (!purgeAction.IsCompleted)
+			{
+				await Task.Delay(TimeSpan.FromSeconds(5));
+			}
+
+			if (!purgeAction.IsFaulted && purgeAction.Result.Response.IsSuccessStatusCode)
+			{
+				Console.ForegroundColor = ConsoleColor.Green;
+				Console.WriteLine($" - Purge {cdn.EndpointName} finished with status: success");
+				Console.ForegroundColor = ConsoleColor.White;
+			}
+			else
+			{
+				Console.ForegroundColor = ConsoleColor.Red;
+				if (purgeAction.IsFaulted)
+					Console.WriteLine($" - Purge FAILED {cdn.EndpointName} finished with exception: {purgeAction.Exception}");
+				else
+					Console.WriteLine($" - Purge FAILED {cdn.EndpointName} finished with status: {purgeAction.Result.Response.StatusCode}");
+
+				Console.ForegroundColor = ConsoleColor.White;
+			}
+		}
+
+		private static async Task<AuthenticationResult> GetAccessTokenAsync()
 		{
 			var context = new AuthenticationContext($"https://login.windows.net/{_aadTenantDomain}");
 			var token = await context.AcquireTokenAsync("https://management.core.windows.net/",

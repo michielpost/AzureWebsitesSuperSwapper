@@ -39,6 +39,9 @@
       <HintPath>..\packages\ConsoleMenu.0.1.1\lib\net40\ConsoleMenu.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="Microsoft.Azure.Management.Cdn, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Azure.Management.Cdn.3.1.0-preview\lib\net45\Microsoft.Azure.Management.Cdn.dll</HintPath>
+    </Reference>
     <Reference Include="Microsoft.Azure.Management.ResourceManager, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.Azure.Management.ResourceManager.1.5.0-preview\lib\net45\Microsoft.Azure.Management.ResourceManager.dll</HintPath>
       <Private>True</Private>
@@ -79,6 +82,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Models\CdnPurgeConfig.cs" />
     <Compile Include="Models\SlotConfig.cs" />
     <Compile Include="Models\SwapGroup.cs" />
     <Compile Include="Program.cs" />
